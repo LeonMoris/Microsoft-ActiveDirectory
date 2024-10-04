@@ -37,44 +37,54 @@
 # Github: https://github.com/Joy-Leon                                                                                                             #
 #-------------------------------------------------------------------------------------------------------------------------------------------------#
 
-#-------------------------------------------------------------------------------------------------------------------------------------------------#
-# Declared functions.
+#---------------------------------------------------------------------- NOTE ---------------------------------------------------------------------#
+#The listing of Shares and all subfolders still need to be merged into one.
+#Currently the path of the subfolders need to be entered manually.
 
-function func_logging {   
-    param ($String) 
-    func_writeok $string
-    Start-Sleep -Seconds 1 
-    return "[{0:dd/MM/yy} {0:HH:mm:ss}] $String" -f (Get-Date)  | Out-File $logfile -append
-}
-function func_writeok {
-    param ($string)
-    write-host ""
-    write-host $string -f green
-    Start-Sleep -Seconds 1
-}
-function func_writenok {
-    param ($string)
-    write-host ""
-    write-host $string -f red
-    Start-Sleep -Seconds 1
-}
 
-function func_directory {
-    param($Path)
-    if (!(Test-Path $Path)) {
-        New-Item -ItemType Directory -Path $Path | out-null
-    }
-}
+#---------------------------------------------------------------------- VARS ---------------------------------------------------------------------#
 
-function func_checkvariable {
-    param ($variable, $filename, $name)
-    if ($null -eq $variable){
-        func_writenok "An error has occurred with gathering data from the file $FILENAME"
-        func_writenok "Some data is missing. Please check your configuration and retry."
-        break 
-    } Else {
-        func_logging "The $name is $($variable)"
-    }
-}
+#---------------------------------------------------------------------- DEVS ---------------------------------------------------------------------#
 
-#-------------------------------------------------------------------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------- PROD ---------------------------------------------------------------------#
+
+#--------------------- Listing all Shares ---------------------#
+
+$Shares = get-smbshare
+
+$SharesReport = @()
+
+Foreach ($Share in $Shares) {
+    $Acl = Get-Acl -Path $Share.path
+    foreach ($Access in $acl.Access)
+        {
+            $Properties = [ordered]@{
+                'Share Name'=$Share.name;
+                'Share Path'=$Share.path;
+                'ADGroup or User'=$Access.IdentityReference;
+                'Permissions'=$Access.FileSystemRights;
+                'Inherited'=$Access.IsInherited}
+            $SharesReport += New-Object -TypeName PSObject -Property $Properties
+        }
+}
+$SharesReport | Export-Csv -path "C:\temp\Shares.csv" -NoTypeInformation
+
+#------------------- Listing all Subfolders -------------------#
+
+$FolderPath = get-childitem -Directory -Path "E:\Data" -Recurse -Force
+
+$Report = @()
+
+Foreach ($Folder in $FolderPath) {
+    $Acl = Get-Acl -Path $Folder.FullName
+    foreach ($Access in $acl.Access)
+        {
+            $Properties = [ordered]@{
+                'FolderName'=$Folder.FullName;
+                'ADGroup or User'=$Access.IdentityReference;
+                'Permissions'=$Access.FileSystemRights;
+                'Inherited'=$Access.IsInherited}
+            $Report += New-Object -TypeName PSObject -Property $Properties
+        }
+}
+$Report | Export-Csv -path "C:\temp\FolderPermissions.csv" -NoTypeInformation
