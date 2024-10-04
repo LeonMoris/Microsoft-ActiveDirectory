@@ -38,17 +38,53 @@
 #-------------------------------------------------------------------------------------------------------------------------------------------------#
 
 #---------------------------------------------------------------------- NOTE ---------------------------------------------------------------------#
-#The listing of Shares and all subfolders still need to be merged into one.
-#Currently the path of the subfolders need to be entered manually.
-
 
 #---------------------------------------------------------------------- VARS ---------------------------------------------------------------------#
+
+$logfile = "C:\Joy\logfile.txt"
+
+#---------------------------------------------------------------------- FUNC ---------------------------------------------------------------------#
+function func_logging {   
+    param ($string) 
+    func_writeok $string
+    Start-Sleep -Seconds 3 
+    return "[{0:dd/MM/yy} {0:HH:mm:ss}] $string" -f (Get-Date)  | Out-File $logfile -append
+}
+function func_writeok {
+    param ($string)
+    write-host ""
+    write-host $string -f green
+}
+function func_writenok {
+    param ($string)
+    write-host ""
+    write-host $string -f red
+}
+
+function func_directory {
+    param($Path)
+    if (!(Test-Path $Path)) {
+        New-Item -ItemType Directory -Path $Path | out-null
+    }
+}
 
 #---------------------------------------------------------------------- DEVS ---------------------------------------------------------------------#
 
 #---------------------------------------------------------------------- PROD ---------------------------------------------------------------------#
 
-#--------------------- Listing all Shares ---------------------#
+#------------------ Preparations for Logfile -------------------#
+
+func_directory "C:\Joy"
+
+if (Test-Path $logfile) {
+    if (Test-Path "$logfile.old") {
+        Remove-Item "$logfile.old"
+    }
+    move-item $logfile -destination "$logfile-old.txt"
+}
+new-item $logfile | func_logging "A logfile has been created at $logfile"
+
+#---------------------- Listing all Shares ---------------------#
 
 $Shares = get-smbshare
 
@@ -69,7 +105,7 @@ Foreach ($Share in $Shares) {
 }
 $SharesReport | Export-Csv -path "C:\temp\Shares.csv" -NoTypeInformation
 
-#------------------- Listing all Subfolders -------------------#
+#-------------------- Listing all Subfolders -------------------#
 
 $FolderPath = get-childitem -Directory -Path "E:\Data" -Recurse -Force
 
